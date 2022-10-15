@@ -1,0 +1,5 @@
+[workspace]
+members = ["tchandle", "tchandle-common", "xtask"]
+
+[patch.crates-io]
+aya = { path = "/home/afredette/projects/aya/aya" }
