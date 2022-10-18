@@ -1,11 +1,12 @@
-use aya::programs::tc::qdisc_detach_program;
-use aya::programs::{tc, SchedClassifier, TcAttachType};
+//use aya::programs::tc::qdisc_detach_program;
+use aya::programs::{tc, SchedClassifier, TcAttachType, TcError};
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
-use core::time;
+//use core::time;
 use log::{info, warn};
-use std::thread;
+//use std::thread;
+use std::io::ErrorKind::AlreadyExists;
 use tokio::signal;
 
 #[derive(Debug, Parser)]
@@ -41,13 +42,41 @@ async fn main() -> Result<(), anyhow::Error> {
     // the full cleanup can be done with 'sudo tc qdisc del dev eth0 clsact'.
     let _ = tc::qdisc_add_clsact(&opt.iface);
 
-    let delay = time::Duration::new(5, 0);
+    //let delay = time::Duration::new(5, 0);
 
-    let program: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
-    program.load()?;
-    let link_id_0 = program.attach(&opt.iface, TcAttachType::Ingress, 50, 4)?;
+    let handle: u32 = 4;
+
+    let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
+    program0.load()?;
+    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, 50, handle);
     info!("\nlink_id_0: {:#?}", link_id_0);
 
+    let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
+    program1.load()?;
+    let attach_result = program1.attach(&opt.iface, TcAttachType::Ingress, 50, handle);
+
+    match attach_result {
+        Ok(link_id_1) => {
+            info!("\nlink_id_1: {:#?}", link_id_1);
+        }
+        Err(error) => {
+            info!("\nerror: {:#?}", error);
+            match error {
+                aya::programs::ProgramError::TcError(tc_error) => match tc_error {
+                    TcError::NetlinkError { io_error } => {
+                        if io_error.kind() == AlreadyExists {
+                            info!("There is already a program attached with handle {}", handle);
+                            info!("error: \n{:#?}", TcError::NetlinkError { io_error });
+                        };
+                    }
+                    TcError::AlreadyAttached => panic!("error: {}", TcError::AlreadyAttached),
+                },
+                _ => panic!("Unexpected error: {:#?}", error),
+            };
+        }
+    }
+
+    /*
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
     let link_id_1 = program1.attach(&opt.iface, TcAttachType::Ingress, 50, 1)?;
@@ -75,6 +104,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("Sleep...");
     thread::sleep(delay);
+    */
+
+    //info!("calling take link for program 0 (tchandle)");
+    //program0.take_link(link_id_0)?;
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
