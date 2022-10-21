@@ -15,13 +15,6 @@ struct Opt {
     iface: String,
 }
 
-struct TcLink {
-    if_index: i32,
-    attach_type: TcAttachType,
-    priority: u16,
-    handle: u32,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let opt = Opt::parse();
@@ -56,42 +49,22 @@ async fn main() -> Result<(), anyhow::Error> {
     let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, 0, 0)?;
     info!("\nlink_id_0: {:#?}", link_id_0);
 
-    /* Error handling test
-    let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
-    program1.load()?;
-    let attach_result = program1.attach(&opt.iface, TcAttachType::Ingress, 50, handle);
-
-    match attach_result {
-        Ok(link_id_1) => {
-            info!("\nlink_id_1: {:#?}", link_id_1);
-        }
-        Err(error) => {
-            info!("\nerror: {:#?}", error);
-            match error {
-                aya::programs::ProgramError::TcError(tc_error) => match tc_error {
-                    TcError::NetlinkError { io_error } => {
-                        if io_error.kind() == AlreadyExists {
-                            info!("There is already a program attached with handle {}", handle);
-                            info!("error: \n{:#?}", TcError::NetlinkError { io_error });
-                        };
-                    }
-                    TcError::AlreadyAttached => panic!("error: {}", TcError::AlreadyAttached),
-                },
-                _ => panic!("Unexpected error: {:#?}", error),
-            };
-        }
-    }
-     */
-
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
     let link_id_1 = program1.attach(&opt.iface, TcAttachType::Ingress, 50, 1)?;
     info!("\nlink_id_1: {:#?}", link_id_1);
 
-    /*
     info!("Sleep...");
     thread::sleep(delay);
 
+    info!("calling take link for program 1 (tctest1)");
+    let link_1 = program1.take_link(link_id_1)?;
+    info!("\nlink_1: {:#?}", link_1);
+
+    info!("Sleep...");
+    thread::sleep(delay);
+
+    info!("Adding program 2 (tctest2)");
     let program2: &mut SchedClassifier = bpf.program_mut("tctest2").unwrap().try_into()?;
     program2.load()?;
     let link_id_2 = program2.attach(&opt.iface, TcAttachType::Ingress, 50, 3)?;
@@ -103,29 +76,12 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Detaching tctest2");
     program2.detach(link_id_2)?;
 
-    info!("Sleep...");
-    thread::sleep(delay);
-
-    info!("Calling qdisc_detach_program");
-    qdisc_detach_program(&opt.iface, TcAttachType::Ingress, "tctest1")?;
-
-    info!("Sleep...");
-    thread::sleep(delay);
-    */
-
-    info!("Sleep...");
-    thread::sleep(delay);
-
-    info!("calling take link for program 1 (tctest1)");
-    let link_1 = program1.take_link(link_id_1)?;
-    info!("\nlink_1: {:#?}", link_1);
-
     //let tc_link_1 = TcLink {link_1., link_1/1,link_1.2,link_1.3,};
 
     info!("Sleep...");
     thread::sleep(delay);
 
-    info!("calling link_1.detach (tctest1)");
+    //info!("calling link_1.detach (tctest1)");
     link_1.detach()?;
 
     info!("Waiting for Ctrl-C...");
