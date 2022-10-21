@@ -1,18 +1,25 @@
 //use aya::programs::tc::qdisc_detach_program;
-use aya::programs::{tc, SchedClassifier, TcAttachType, TcError};
+use aya::programs::{tc, Link, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
-//use core::time;
+use core::time;
 use log::{info, warn};
-//use std::thread;
-use std::io::ErrorKind::AlreadyExists;
+//use std::io::ErrorKind::AlreadyExists;
+use std::thread;
 use tokio::signal;
 
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "eth0")]
     iface: String,
+}
+
+struct TcLink {
+    if_index: i32,
+    attach_type: TcAttachType,
+    priority: u16,
+    handle: u32,
 }
 
 #[tokio::main]
@@ -42,15 +49,14 @@ async fn main() -> Result<(), anyhow::Error> {
     // the full cleanup can be done with 'sudo tc qdisc del dev eth0 clsact'.
     let _ = tc::qdisc_add_clsact(&opt.iface);
 
-    //let delay = time::Duration::new(5, 0);
-
-    let handle: u32 = 4;
+    let delay = time::Duration::new(5, 0);
 
     let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
     program0.load()?;
-    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, 50, handle);
+    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, 0, 0)?;
     info!("\nlink_id_0: {:#?}", link_id_0);
 
+    /* Error handling test
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
     let attach_result = program1.attach(&opt.iface, TcAttachType::Ingress, 50, handle);
@@ -75,13 +81,14 @@ async fn main() -> Result<(), anyhow::Error> {
             };
         }
     }
+     */
 
-    /*
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
     let link_id_1 = program1.attach(&opt.iface, TcAttachType::Ingress, 50, 1)?;
     info!("\nlink_id_1: {:#?}", link_id_1);
 
+    /*
     info!("Sleep...");
     thread::sleep(delay);
 
@@ -106,8 +113,20 @@ async fn main() -> Result<(), anyhow::Error> {
     thread::sleep(delay);
     */
 
-    //info!("calling take link for program 0 (tchandle)");
-    //program0.take_link(link_id_0)?;
+    info!("Sleep...");
+    thread::sleep(delay);
+
+    info!("calling take link for program 1 (tctest1)");
+    let link_1 = program1.take_link(link_id_1)?;
+    info!("\nlink_1: {:#?}", link_1);
+
+    //let tc_link_1 = TcLink {link_1., link_1/1,link_1.2,link_1.3,};
+
+    info!("Sleep...");
+    thread::sleep(delay);
+
+    info!("calling link_1.detach (tctest1)");
+    link_1.detach()?;
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
