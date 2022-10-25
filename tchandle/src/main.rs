@@ -1,3 +1,4 @@
+use aya::programs::tc::TcOptions;
 //use aya::programs::tc::qdisc_detach_program;
 use aya::programs::{tc, Link, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Bpf};
@@ -46,12 +47,19 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
     program0.load()?;
-    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, 0, 0)?;
+    let link_id_0 = program0.attach("&opt.iface", TcAttachType::Ingress, TcOptions::default())?;
     info!("\nlink_id_0: {:#?}", link_id_0);
 
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
-    let link_id_1 = program1.attach(&opt.iface, TcAttachType::Ingress, 50, 1)?;
+    let link_id_1 = program1.attach(
+        &opt.iface,
+        TcAttachType::Ingress,
+        TcOptions {
+            priority: (50),
+            handle: (3),
+        },
+    )?;
     info!("\nlink_id_1: {:#?}", link_id_1);
 
     info!("Sleep...");
@@ -67,7 +75,14 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Adding program 2 (tctest2)");
     let program2: &mut SchedClassifier = bpf.program_mut("tctest2").unwrap().try_into()?;
     program2.load()?;
-    let link_id_2 = program2.attach(&opt.iface, TcAttachType::Ingress, 50, 3)?;
+    let link_id_2 = program2.attach(
+        &opt.iface,
+        TcAttachType::Ingress,
+        TcOptions {
+            priority: (50),
+            ..Default::default()
+        },
+    )?;
     info!("\nlink_id_2: {:#?}", link_id_2);
 
     info!("Sleep...");
@@ -76,12 +91,10 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Detaching tctest2");
     program2.detach(link_id_2)?;
 
-    //let tc_link_1 = TcLink {link_1., link_1/1,link_1.2,link_1.3,};
-
     info!("Sleep...");
     thread::sleep(delay);
 
-    //info!("calling link_1.detach (tctest1)");
+    info!("calling link_1.detach (tctest1)");
     link_1.detach()?;
 
     info!("Waiting for Ctrl-C...");
