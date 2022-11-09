@@ -47,17 +47,20 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
     program0.load()?;
-    let link_id_0 = program0.attach("&opt.iface", TcAttachType::Ingress, TcOptions::default())?;
+    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress)?;
     info!("\nlink_id_0: {:#?}", link_id_0);
+
+    info!("Sleep...");
+    thread::sleep(delay);
 
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
-    let link_id_1 = program1.attach(
+    let link_id_1 = program1.attach_with_options(
         &opt.iface,
         TcAttachType::Ingress,
         TcOptions {
-            priority: (50),
-            handle: (3),
+            priority: 50,
+            handle: 3,
         },
     )?;
     info!("\nlink_id_1: {:#?}", link_id_1);
@@ -75,11 +78,11 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Adding program 2 (tctest2)");
     let program2: &mut SchedClassifier = bpf.program_mut("tctest2").unwrap().try_into()?;
     program2.load()?;
-    let link_id_2 = program2.attach(
+    let link_id_2 = program2.attach_with_options(
         &opt.iface,
         TcAttachType::Ingress,
         TcOptions {
-            priority: (50),
+            priority: 50,
             ..Default::default()
         },
     )?;
