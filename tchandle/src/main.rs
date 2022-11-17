@@ -1,5 +1,5 @@
 //use aya::programs::tc::qdisc_detach_program;
-use aya::programs::tc::{SchedClassifierLink, TcOptions};
+use aya::programs::tc::TcOptions;
 use aya::programs::{tc, Link, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
@@ -47,12 +47,15 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
     program0.load()?;
-    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress, Default::default())?;
+    let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress)?;
     info!("\nlink_id_0: {:#?}", link_id_0);
+
+    info!("Sleep...");
+    thread::sleep(delay);
 
     let program1: &mut SchedClassifier = bpf.program_mut("tctest1").unwrap().try_into()?;
     program1.load()?;
-    let link_id_1 = program1.attach(
+    let link_id_1 = program1.attach_with_options(
         &opt.iface,
         TcAttachType::Ingress,
         TcOptions {
@@ -69,6 +72,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let link_1 = program1.take_link(link_id_1)?;
     info!("\nlink_1: {:#?}", link_1);
 
+    /*
     info!(
         "priority: {}, handle: {}",
         link_1.tc_options().priority,
@@ -81,6 +85,7 @@ async fn main() -> Result<(), anyhow::Error> {
         link_1.tc_options().priority,
         link_1.tc_options().handle,
     )?;
+    */
 
     info!("Sleep...");
     thread::sleep(delay);
@@ -88,10 +93,12 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Adding program 2 (tctest2)");
     let program2: &mut SchedClassifier = bpf.program_mut("tctest2").unwrap().try_into()?;
     program2.load()?;
-    let link_id_2 = program2.attach(
+    let link_id_2 = program2.attach_with_options(
         &opt.iface,
         TcAttachType::Ingress,
-        TcOptions::default(),
+        TcOptions {
+            priority: 50,
+            ..Default::default()
         },
     )?;
     info!("\nlink_id_2: {:#?}", link_id_2);
@@ -105,8 +112,13 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Sleep...");
     thread::sleep(delay);
 
+    /*
     info!("calling link_1_copy.detach (tctest1)");
     link_1_copy.detach()?;
+    */
+
+    info!("calling link_1.detach (tctest1)");
+    link_1.detach()?;
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
