@@ -4,8 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-aya-bpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-log-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
+# aya-bpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-bpf = { path = "/home/afredette/projects/aya/bpf/aya-bpf" }
+
+# aya-log-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
+aya-log-ebpf = { path = "/home/afredette/projects/aya/bpf/aya-log-ebpf" }
+
+
+
 tchandle-common = { path = "../tchandle-common" }
 
 [[bin]]

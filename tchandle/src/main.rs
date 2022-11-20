@@ -1,12 +1,11 @@
-//use aya::programs::tc::qdisc_detach_program;
-use aya::programs::tc::TcOptions;
+use aya::programs::tc::{SchedClassifierLink, TcOptions};
 use aya::programs::{tc, Link, SchedClassifier, TcAttachType};
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
 use core::time;
 use log::{info, warn};
-//use std::io::ErrorKind::AlreadyExists;
+use serde::{Deserialize, Serialize};
 use std::thread;
 use tokio::signal;
 
@@ -14,6 +13,20 @@ use tokio::signal;
 struct Opt {
     #[clap(short, long, default_value = "eth0")]
     iface: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum Direction {
+    Ingress,
+    Egress,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TcProgram {
+    if_name: String,
+    direction: Direction,
+    priority: u16,
+    handle: u32,
 }
 
 #[tokio::main]
@@ -60,7 +73,7 @@ async fn main() -> Result<(), anyhow::Error> {
         TcAttachType::Ingress,
         TcOptions {
             priority: 50,
-            handle: 1,
+            handle: 3,
         },
     )?;
     info!("\nlink_id_1: {:#?}", link_id_1);
@@ -72,20 +85,30 @@ async fn main() -> Result<(), anyhow::Error> {
     let link_1 = program1.take_link(link_id_1)?;
     info!("\nlink_1: {:#?}", link_1);
 
-    /*
     info!(
         "priority: {}, handle: {}",
-        link_1.tc_options().priority,
-        link_1.tc_options().handle
+        link_1.priority(),
+        link_1.handle()
     );
 
+    let prog1_info = TcProgram {
+        if_name: opt.iface.clone(),
+        direction: Direction::Ingress,
+        priority: link_1.priority(),
+        handle: link_1.handle(),
+    };
+
+    let attach_type = match prog1_info.direction {
+        Direction::Ingress => TcAttachType::Ingress,
+        Direction::Egress => TcAttachType::Egress,
+    };
+
     let link_1_copy = SchedClassifierLink::new(
-        &opt.iface,
-        TcAttachType::Ingress,
-        link_1.tc_options().priority,
-        link_1.tc_options().handle,
+        &prog1_info.if_name,
+        attach_type,
+        prog1_info.priority,
+        prog1_info.handle,
     )?;
-    */
 
     info!("Sleep...");
     thread::sleep(delay);
@@ -112,13 +135,32 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Sleep...");
     thread::sleep(delay);
 
-    /*
     info!("calling link_1_copy.detach (tctest1)");
     link_1_copy.detach()?;
-    */
+
+    info!("Sleep...");
+    thread::sleep(delay);
 
     info!("calling link_1.detach (tctest1)");
-    link_1.detach()?;
+    let result = link_1.detach();
+
+    match result {
+        Err(e) => info!("Error, as expected, calling link_1.detach: ({:#?})", e),
+        Ok(_) => info!("No error when calling link1.detach"),
+    };
+
+    let invalid_link = SchedClassifierLink::new(&prog1_info.if_name, attach_type, 500, 4)?;
+
+    info!("calling invalid_link.detach (tctest1)");
+    let result = invalid_link.detach();
+
+    match result {
+        Err(e) => info!(
+            "Error, as expected, calling invalid_link.detach: ({:#?})",
+            e
+        ),
+        Ok(_) => info!("No error when calling link1.detach"),
+    };
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
