@@ -6,7 +6,7 @@ use clap::Parser;
 use core::time;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
-use std::thread;
+use std::{mem, thread};
 use tokio::signal;
 
 #[derive(Debug, Parser)]
@@ -58,7 +58,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let delay = time::Duration::new(5, 0);
 
-    let program0: &mut SchedClassifier = bpf.program_mut("tchandle").unwrap().try_into()?;
+    let program0: &mut SchedClassifier = bpf.program_mut("tctest0").unwrap().try_into()?;
     program0.load()?;
     let link_id_0 = program0.attach(&opt.iface, TcAttachType::Ingress)?;
     info!("\nlink_id_0: {:#?}", link_id_0);
@@ -103,12 +103,14 @@ async fn main() -> Result<(), anyhow::Error> {
         Direction::Egress => TcAttachType::Egress,
     };
 
-    let link_1_copy = SchedClassifierLink::new(
+    let link_1_copy = SchedClassifierLink::new_tc_link(
         &prog1_info.if_name,
         attach_type,
         prog1_info.priority,
         prog1_info.handle,
     )?;
+
+    info!("\nlink_1_copy\n{:#?}", link_1_copy);
 
     info!("Sleep...");
     thread::sleep(delay);
@@ -129,8 +131,24 @@ async fn main() -> Result<(), anyhow::Error> {
     info!("Sleep...");
     thread::sleep(delay);
 
-    info!("Detaching tctest2");
-    program2.detach(link_id_2)?;
+    info!("calling take link for program 2 (tctest2)");
+    let link_2 = program2.take_link(link_id_2)?;
+    info!("\nlink_2: {:#?}\n", link_2);
+
+    info!(
+        "priority: {}, handle: {}",
+        link_2.priority(),
+        link_2.handle()
+    );
+
+    let _prog2_info = TcProgram {
+        if_name: opt.iface.clone(),
+        direction: Direction::Ingress,
+        priority: link_2.priority(),
+        handle: link_2.handle(),
+    };
+
+    mem::forget(link_2);
 
     info!("Sleep...");
     thread::sleep(delay);
@@ -149,7 +167,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(_) => info!("No error when calling link1.detach"),
     };
 
-    let invalid_link = SchedClassifierLink::new(&prog1_info.if_name, attach_type, 500, 4)?;
+    let invalid_link = SchedClassifierLink::new_tc_link(&prog1_info.if_name, attach_type, 500, 4)?;
 
     info!("calling invalid_link.detach (tctest1)");
     let result = invalid_link.detach();
