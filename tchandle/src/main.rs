@@ -126,7 +126,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 Direction::Egress => TcAttachType::Egress,
             };
 
-            let new_link_1 = SchedClassifierLink::new_tc_link(
+            let new_link_1 = SchedClassifierLink::attached(
                 &prog1_info.if_name,
                 attach_type,
                 prog1_info.priority,

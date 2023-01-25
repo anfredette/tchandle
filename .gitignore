@@ -14,3 +14,5 @@ Cargo.lock
 
 # State saved by the program
 saved_tc_link
+
+.history
