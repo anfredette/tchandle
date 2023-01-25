@@ -6,7 +6,7 @@ use clap::Parser;
 use core::time;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
-use std::{mem, thread};
+use std::thread;
 use tokio::signal;
 
 #[derive(Debug, Parser)]
@@ -103,7 +103,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Direction::Egress => TcAttachType::Egress,
     };
 
-    let link_1_copy = SchedClassifierLink::new_tc_link(
+    let link_1_copy = SchedClassifierLink::attached(
         &prog1_info.if_name,
         attach_type,
         prog1_info.priority,
@@ -148,7 +148,7 @@ async fn main() -> Result<(), anyhow::Error> {
         handle: link_2.handle(),
     };
 
-    mem::forget(link_2);
+    //mem::forget(link_2);
 
     info!("Sleep...");
     thread::sleep(delay);
@@ -167,7 +167,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Ok(_) => info!("No error when calling link1.detach"),
     };
 
-    let invalid_link = SchedClassifierLink::new_tc_link(&prog1_info.if_name, attach_type, 500, 4)?;
+    let invalid_link = SchedClassifierLink::attached(&prog1_info.if_name, attach_type, 500, 4)?;
 
     info!("calling invalid_link.detach (tctest1)");
     let result = invalid_link.detach();
@@ -179,6 +179,12 @@ async fn main() -> Result<(), anyhow::Error> {
         ),
         Ok(_) => info!("No error when calling link1.detach"),
     };
+
+    info!("Sleep...");
+    thread::sleep(delay);
+
+    info!("calling link_2.detach (tctest1)");
+    link_2.detach()?;
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
