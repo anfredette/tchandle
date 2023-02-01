@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 # aya-bpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-bpf = { path = "/home/afredette/projects/aya/bpf/aya-bpf" }
+aya-bpf = { path = "/home/afredette/projects/rh-aya/bpf/aya-bpf" }
 
 # aya-log-ebpf = { git = "https://github.com/aya-rs/aya", branch = "main" }
-aya-log-ebpf = { path = "/home/afredette/projects/aya/bpf/aya-log-ebpf" }
+aya-log-ebpf = { path = "/home/afredette/projects/rh-aya/bpf/aya-log-ebpf" }
 
 
 
